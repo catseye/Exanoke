@@ -1,6 +1,8 @@
 Exanoke
 =======
 
+*This language is a work very much in progress.*
+
 _Exanoke_ is a pure functional language which is syntactically restricted to
 expressing the primitive recursive functions.
 
