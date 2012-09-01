@@ -42,6 +42,11 @@ thing, and there are no natural bound on recursion, and they would have
 to be embodied by the grammar, and... well, it sounds interesting, but
 doable.  So let's try it.
 
+[Pixley]: https://catseye.tc/projects/pixley/
+[PL-{GOTO}]: http://catseye.tc/projects/pl-goto.net/
+[Robin]: https://github.com/catseye/Robin
+[TPiS]: http://catseye.tc/projects/tpis/
+
 Ground Rules
 ------------
 
@@ -77,34 +82,42 @@ Data types
 
 Let's just go with lists and atoms for now, although natural numbers would
 be easy to add too.  Atoms are all-uppercase, and `TRUE` is the only truthy
-atom.
+atom.  `NIL` is the magical list-terminating atom, much love to it.
+
+Arguments do not have user-defined names, they're just referred to strings of
+`#` symbols: `# is the first argument to the function, `##` is the second,
+etc.  When a function is defined, the name of the last argument is given, to
+specify how many arguments the function takes.
 
 Grammar
 -------
 
     Exanoke   ::= {FunDef} Expr.
-    FunDef    ::= "def" name "(" FirstArg {Arg} ")" Expr.
-    FirstArg  ::= "#" name.
-    Arg       ::= "##" name.
+    FunDef    ::= "def" name "(" FirstArg | Arg ")" Expr.
+    FirstArg  ::= "#".
+    Arg       ::= "##" {"#"}.
     Expr      ::= Larger
                 | Smaller.
     Larger    ::= "@cons" "(" Expr Expr ")"
                 | "@if" Expr "then" Expr "else" Expr
                 | "@self" "(" Smaller {Expr} ")"
-                | "@(" Expr ")".
-    Smaller   ::= "head" Smaller
-                | "tail" Smaller
-                | "if" Expr "then" Smaller "else" Smaller
-                | "eq?" "(" Expr Expr ")"
-                | "cons?" Expr
-                | "not" Expr
-                | "(" Smaller ")"
-                | Atom
-                | Arg.
+                | "@(" Expr ")"
+                | Arg
+                | Atom.
+    Smaller   ::= "head" SmallerTerm
+                | "tail" SmallerTerm
+                | "if" Expr "then" SmallerTerm "else" SmallerTerm
+                | "eq?" "(" SmallerTerm SmallerTerm ")"
+                | "cons?" SmallerTerm
+                | "not" SmallerTerm
+                | "(" Smaller ")".
+    SmallerTer::= Smaller
+                | FirstArg.
     Atom      ::= name<uppercase>.
 
-TODO The test in `if` and the expressions being compared in `eq?` don't
-have to be Smallers, do they?  They might...
+TODO Oho, it looks like the test in `if` and the expressions being
+compared in `eq?` have to be SmallerTerms... or they need to go into
+Larger instead.  Hmm.
 
 Examples
 --------
@@ -125,46 +138,132 @@ Examples
     = NIL
 
     | tail FOO
-    ? Can't take tail of non-cons cell FOO
+    ? Not a cons cell
 
-    | def snoc(#i ##j)
-    |     @cons(##j #i)
+    | head BAR
+    ? Not a cons cell
+
+    | if TRUE then HI else THERE
+    = HI
+
+    | if HI then HERE else THERE
+    = THERE
+
+    | eq?(HI THERE)
+    = FALSE
+
+    | eq?(HI HI)
+    = TRUE
+
+    | cons? HI
+    = FALSE
+
+    | cons? @cons(WAGGA NIL)
+    = TRUE
+
+    | not TRUE
+    = FALSE
+
+    | not FALSE
+    = TRUE
+
+    | not @cons(WAGGA NIL)
+    = TRUE
+
+    | #
+    ? Not in a function body
+
+    | @self(FOO)
+    ? Not in a function body
+
+    | def id(#)
+    |     #
+    | id(WOO)
+    = WOO
+
+    | def id(#)
+    |     #
+    | id(FOO BAR)
+    ? Arity mismatch
+
+    | def id(#)
+    |     ##
+    | id(WOO)
+    ? Arity mismatch
+
+    | def snd(##)
+    |     ##
+    | snd(FOO BAR)
+    = BAR
+
+    | def snd(##)
+    |     ##
+    | snd(FOO)
+    ? Arity mismatch
+
+    | def snoc(##)
+    |     @cons(## #)
     | snoc(THERE HI)
     = (HI . THERE)
 
-    | def count(#i)
-    |     self(tail #i)
+    | def count(#)
+    |     @self(tail #)
     | count(@cons(A @cons(B NIL)))
-    ? Can't take tail of non-cons cell NIL
+    ? Not a cons cell
 
-    | def count(#i)
-    |     if eq?(#i NIL) then NIL else self(tail #i)
+    | def count(#)
+    |     if eq?(# NIL) then NIL else @self(tail #)
     | count(@cons(A @cons(B NIL)))
     = NIL
 
-    | def last(#i)
-    |     if not cons? #i then #i else self(tail #i)
+    | def last(#)
+    |     if not cons? # then # else @self(tail #)
     | last(@cons(A @cons(B GRAAAP)))
     = GRAAAP
 
-    | def count(#i ##acc)
-    |     if eq?(#i NIL) then ##acc else self(tail #i @cons(ONE ##acc))
+    | def count(##)
+    |     if eq?(# NIL) then ## else @self(tail # @cons(ONE ##))
     | count(@cons(A @cons(B NIL)) NIL)
     = (ONE ONE)
 
-    | def double(#i)
-    |     @cons(#i #i)
-    | def quadruple(#i)
-    |     double(double(#i))
+    | def double(#)
+    |     @cons(# #)
+    | def quadruple(#)
+    |     double(double(#))
     | quadruple MEOW
     = ((MEOW . MEOW) . (MEOW MEOW))
 
-    | def quadruple(#i)
-    |     double(double(#i))
-    | def double(#i)
-    |     @cons(#i #i)
+    | def quadruple(#)
+    |     double(double(#))
+    | def double(#)
+    |     @cons(# #)
     | MEOW
-    ? Can't call not (yet) defined function "double"
+    ? Undefined function
+
+    | def urff(#)
+    |     @self(@cons(# #))
+    | urff(WOOF)
+    ? Expected <smaller>, found "@cons"
+
+    | def urff(#)
+    |     @self(#)
+    | urff(GRAAAAP)
+    ? Expected <smaller>, found "#"
+
+    | def urff(#)
+    |     @self(MANGA)
+    | urff(GRAAAAP)
+    ? Expected <smaller>, found "MANGA"
+
+    | def urff(#)
+    |     @self(if eq?(@self(#) A) then head # else tail #)
+    | urff(GRAAAAP)
+    ? Expected <smaller>, found "@self"
+
+    | def urff(#)
+    |     @self(if @self(tail #) then head # else tail #)
+    | urff(GRAAAAP)
+    ? Expected <smaller>, found "@self"
 
 TODO more examples here...
 
