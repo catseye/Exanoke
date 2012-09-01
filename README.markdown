@@ -28,7 +28,7 @@ get is something in which you can only express primitive recursive functions.
 
 But what about functional languages?
 
-The approach I've taken in [TPis][], and that I wanted to take in [Pixley][]
+The approach I've taken in [TPiS][], and that I wanted to take in [Pixley][]
 and [Robin][], is to provide an unrestricted functional language to the
 programmer, and statically analyze it to see if you're going and writing
 primitive recursive functions in it or not.
@@ -85,7 +85,7 @@ be easy to add too.  Atoms are all-uppercase, and `TRUE` is the only truthy
 atom.  `NIL` is the magical list-terminating atom, much love to it.
 
 Arguments do not have user-defined names, they're just referred to strings of
-`#` symbols: `# is the first argument to the function, `##` is the second,
+`#` symbols: `#` is the first argument to the function, `##` is the second,
 etc.  When a function is defined, the name of the last argument is given, to
 specify how many arguments the function takes.
 
