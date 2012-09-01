@@ -80,9 +80,11 @@ an Exanoke function is always the first argument.
 Data types
 ----------
 
-Let's just go with lists and atoms for now, although natural numbers would
+Let's just go with pairs and atoms for now, although natural numbers would
 be easy to add too.  Atoms are all-uppercase, and `TRUE` is the only truthy
-atom.  `NIL` is the magical list-terminating atom, much love to it.
+atom.  Lists are by convention only (and by convention, lists compose via
+the second element of each pair, and `NIL` is the agreed-upon list-terminating
+atom, much love to it.)
 
 Arguments do not have user-defined names, they're just referred to strings of
 `#` symbols: `#` is the first argument to the function, `##` is the second,
@@ -92,55 +94,53 @@ specify how many arguments the function takes.
 Grammar
 -------
 
-    Exanoke   ::= {FunDef} Expr.
-    FunDef    ::= "def" name "(" FirstArg | Arg ")" Expr.
-    FirstArg  ::= "#".
-    Arg       ::= "##" {"#"}.
-    Expr      ::= Larger
-                | Smaller.
-    Larger    ::= "@cons" "(" Expr Expr ")"
-                | "@if" Expr "then" Expr "else" Expr
-                | "@self" "(" Smaller {Expr} ")"
-                | "@(" Expr ")"
-                | Arg
-                | Atom.
-    Smaller   ::= "head" SmallerTerm
-                | "tail" SmallerTerm
-                | "if" Expr "then" SmallerTerm "else" SmallerTerm
-                | "eq?" "(" SmallerTerm SmallerTerm ")"
-                | "cons?" SmallerTerm
-                | "not" SmallerTerm
-                | "(" Smaller ")".
-    SmallerTer::= Smaller
-                | FirstArg.
-    Atom      ::= name<uppercase>.
+    Exanoke     ::= {FunDef} Expr.
+    FunDef      ::= "def" name<lowercase> "(" FirstArg | Arg ")" Expr.
+    FirstArg    ::= "#".
+    Arg         ::= "##" {"#"}.
+    Expr        ::= "cons" "(" Expr Expr ")"
+                  | "if" Expr "then" Expr "else" Expr
+                  | "self" "(" Smaller {Expr} ")"
+                  | "eq?" "(" Expr Expr")"
+                  | "cons?" Expr
+                  | "not" Expr
+                  | "(" Expr ")"
+                  | name<lowercase> "(" {Expr} ")"
+                  | FirstArg
+                  | Arg
+                  | Atom
+                  | Smaller.
+    Smaller     ::= "<head" SmallerTerm
+                  | "<tail" SmallerTerm
+                  | "<if" Expr "then" Smaller "else" Smaller.
+    SmallerTerm ::= Smaller
+                  | FirstArg.
+    Atom        ::= name<uppercase>.
 
-TODO Oho, it looks like the test in `if` and the expressions being
-compared in `eq?` have to be SmallerTerms... or they need to go into
-Larger instead.  Hmm.
+TODO still not entirely sure about `<if`.
 
 Examples
 --------
 
-    | @cons(HI THERE)
-    = (HI . THERE)
-    
-    | (@cons(HI @cons(THERE NIL)))
+    | cons(HI THERE)
     = (HI THERE)
+    
+    | (cons(HI cons(THERE NIL)))
+    = (HI (THERE NIL))
 
-    | head @cons(HI THERE)
+    | <head cons(HI THERE)
     = HI
 
-    | tail @cons(HI THERE)
-    = (THERE)
+    | <tail cons(HI THERE)
+    = THERE
 
-    | tail tail @cons(HI THERE)
+    | <tail <tail (cons(HI cons(THERE NIL)))
     = NIL
 
-    | tail FOO
+    | <tail FOO
     ? Not a cons cell
 
-    | head BAR
+    | <head BAR
     ? Not a cons cell
 
     | if TRUE then HI else THERE
@@ -158,7 +158,7 @@ Examples
     | cons? HI
     = FALSE
 
-    | cons? @cons(WAGGA NIL)
+    | cons? cons(WAGGA NIL)
     = TRUE
 
     | not TRUE
@@ -167,13 +167,13 @@ Examples
     | not FALSE
     = TRUE
 
-    | not @cons(WAGGA NIL)
+    | not cons(WANGA NIL)
     = TRUE
 
     | #
     ? Not in a function body
 
-    | @self(FOO)
+    | self(FOO)
     ? Not in a function body
 
     | def id(#)
@@ -202,68 +202,78 @@ Examples
     ? Arity mismatch
 
     | def snoc(##)
-    |     @cons(## #)
+    |     cons(## #)
     | snoc(THERE HI)
-    = (HI . THERE)
+    = (HI THERE)
 
     | def count(#)
-    |     @self(tail #)
-    | count(@cons(A @cons(B NIL)))
+    |     self(<tail #)
+    | count(cons(A cons(B NIL)))
     ? Not a cons cell
 
     | def count(#)
-    |     if eq?(# NIL) then NIL else @self(tail #)
-    | count(@cons(A @cons(B NIL)))
+    |     if eq?(# NIL) then NIL else self(<tail #)
+    | count(cons(A cons(B NIL)))
     = NIL
 
     | def last(#)
-    |     if not cons? # then # else @self(tail #)
-    | last(@cons(A @cons(B GRAAAP)))
+    |     if not cons? # then # else self(<tail #)
+    | last(cons(A cons(B GRAAAP)))
     = GRAAAP
 
     | def count(##)
-    |     if eq?(# NIL) then ## else @self(tail # @cons(ONE ##))
-    | count(@cons(A @cons(B NIL)) NIL)
-    = (ONE ONE)
+    |     if eq?(# NIL) then ## else self(<tail # cons(ONE ##))
+    | count(cons(A cons(B NIL)) NIL)
+    = (ONE (ONE NIL))
 
     | def double(#)
-    |     @cons(# #)
+    |     cons(# #)
     | def quadruple(#)
     |     double(double(#))
     | quadruple MEOW
-    = ((MEOW . MEOW) . (MEOW MEOW))
+    = ((MEOW MEOW) (MEOW MEOW))
 
     | def quadruple(#)
     |     double(double(#))
     | def double(#)
-    |     @cons(# #)
+    |     cons(# #)
     | MEOW
     ? Undefined function
 
     | def urff(#)
-    |     @self(@cons(# #))
+    |     self(cons(# #))
     | urff(WOOF)
-    ? Expected <smaller>, found "@cons"
+    ? Expected <smaller>, found "cons"
 
     | def urff(#)
-    |     @self(#)
+    |     self(#)
     | urff(GRAAAAP)
     ? Expected <smaller>, found "#"
 
-    | def urff(#)
-    |     @self(MANGA)
-    | urff(GRAAAAP)
-    ? Expected <smaller>, found "MANGA"
+    | def urff(##)
+    |     self(##)
+    | urff(GRAAAAP SKOOOORP)
+    ? Expected <smaller>, found "##"
+
+    | def urff(##)
+    |     self(<tail ##)
+    | urff(GRAAAAP SKOOOORP)
+    ? Expected <smallerterm>, found "##"
 
     | def urff(#)
-    |     @self(if eq?(@self(#) A) then head # else tail #)
+    |     self(WANGA)
     | urff(GRAAAAP)
-    ? Expected <smaller>, found "@self"
+    ? Expected <smaller>, found "WANGA"
 
     | def urff(#)
-    |     @self(if @self(tail #) then head # else tail #)
+    |     self(if eq?(self(#) A) then <head # else <tail #)
     | urff(GRAAAAP)
-    ? Expected <smaller>, found "@self"
+    ? Expected <smaller>, found "self"
+
+    | def urff(#)
+    |     self(if self(<tail #) then <head # else <tail #)
+    | urff(cons(GRAAAAP FARRRRP))
+    ? Not a cons cell
 
 TODO more examples here...
 
