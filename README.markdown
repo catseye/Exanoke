@@ -17,8 +17,8 @@ implements a primtive recursive function:
 
 *   You can statically analyze the bastard, and prove that all of its
     loops eventually terminate, and so forth; or
-*   You can write it in a language which naturally restricts you to the
-    primitive recursive functions.
+*   You can write it in a language which is inherently restricted to
+    expressing only primitive recursive functions.
 
 The second option is the route [PL-{GOTO}][] takes.  But that's an imperative
 language, and it's fairly easy to restrict an imperative language in this
@@ -38,7 +38,7 @@ PL-{GOTO} takes, and *syntactically* restrict a functional language to the
 primitive recursive functions?  It *should* be possible... and easier than
 statically analyzing an arbitrary program... but it's not immediately trivial.
 Functional languages don't do the `for` loop thing, they do the recursion
-thing, and there are no natural bound on recursion, and they would have
+thing, and there are no natural bounds on that recursion, so those would have
 to be embodied by the grammar, and... well, it sounds interesting, but
 doable.  So let's try it.
 
@@ -55,8 +55,9 @@ primitive recursive:
 
 *   It doesn't perform mutual recursion.
 *   When recursion happens, it's always with arguments that are strictly
-    "smaller" than the arguments the function received.
-*   There is always a base case to the recursion, so that it always
+    "smaller" values than the arguments the function received.
+*   There is a "smallest" value that an argument can take on, so that
+    there is always a base case to the recursion, so that it always
     eventually terminates.
 *   Higher-order functions are not used.
 
@@ -69,13 +70,32 @@ The second point can be enforced by stating syntactic rules for
 "smallerness".  (Gee, typing that made me feel a bit like George W. Bush!)
 
 The third point can be enforced by providing some default behaviour when
-functions are called with the "smallest" kinds of values.
+functions are called with the "smallest" kinds of values.  This could be
+as simple as terminating the program if you try to find a value "smaller"
+than the "smallest" value.
 
 The fourth point can be enforced by simply disallowing functions to be
 passed to, or returned from, functions.
 
-TODO explain critical arguments and how the only critical argument in
-an Exanoke function is always the first argument.
+### Note on Critical Arguments ###
+
+I should note, though, that the second point is an oversimplification.
+Not *all* arguments need to be strictly "smaller" upon recursion -- only
+those arguments which are used to determine *if* the function recurses.
+I'll call those the _critical arguments_.  Other arguments can take on
+any value (which is useful for having "accumulator" arguments and such.)
+
+When statically analyzing a function for primitive recursive-ness, you
+need to check how it decides to rescurse, to find out which arguments are
+the critical arguments, so you can check that those ones always get
+"smaller".
+
+But we can proceed in a simpler fashion here -- we can simply say that
+the first argument to every function is the critical argument, and all
+the rest aren't.  I believe this is without loss of generality, as we can
+always split some functionality which would require more than one critical
+argument across multiple functions, each of which only has one critical
+argument.  (Much like every `for` loop has only one loop variable.)
 
 Data types
 ----------
@@ -86,27 +106,21 @@ atom.  Lists are by convention only (and by convention, lists compose via
 the second element of each pair, and `NIL` is the agreed-upon list-terminating
 atom, much love to it.)
 
-Arguments do not have user-defined names, they're just referred to strings of
-`#` symbols: `#` is the first argument to the function, `##` is the second,
-etc.  When a function is defined, the name of the last argument is given, to
-specify how many arguments the function takes.
-
 Grammar
 -------
 
     Exanoke     ::= {FunDef} Expr.
-    FunDef      ::= "def" name<lowercase> "(" FirstArg | Arg ")" Expr.
-    FirstArg    ::= "#".
-    Arg         ::= "##" {"#"}.
-    Expr        ::= "cons" "(" Expr Expr ")"
+    FunDef      ::= "def" name<lowercase> "(" "#" {"," Arg} ")" Expr.
+    Arg         ::= name<lowercase>.
+    Expr        ::= "cons" "(" Expr "," Expr ")"
                   | "if" Expr "then" Expr "else" Expr
-                  | "self" "(" Smaller {Expr} ")"
-                  | "eq?" "(" Expr Expr")"
-                  | "cons?" Expr
-                  | "not" Expr
+                  | "self" "(" Smaller {"," Expr} ")"
+                  | "eq?" "(" Expr "," Expr")"
+                  | "cons?" "(" Expr ")"
+                  | "not" "(" Expr ")"
                   | "(" Expr ")"
-                  | name<lowercase> "(" {Expr} ")"
-                  | FirstArg
+                  | name<lowercase> "(" Expr {"," Expr} ")"
+                  | "#"
                   | Arg
                   | Atom
                   | Smaller.
@@ -117,31 +131,40 @@ Grammar
                   | FirstArg.
     Atom        ::= name<uppercase>.
 
-TODO still not entirely sure about `<if`.
+The first argument to a function does not have a user-defined name; it is
+simply referred to as `#`.
+
+The names of arguments defined in a function shall not shadow the names of
+any previously-defined functions.
+
+Note that `<if` does not seem to be truly necessary.  Its only use is to embed
+a conditional into the first argument being passed to a recursive call.  You
+could also use a regular `if` and make the recursive call in both branches,
+one with `TRUE` as the first argument and the other with `FALSE`.  I think.
 
 Examples
 --------
 
-    | cons(HI THERE)
+    | cons(HI, THERE)
     = (HI THERE)
     
-    | (cons(HI cons(THERE NIL)))
+    | (cons(HI, cons(THERE, NIL)))
     = (HI (THERE NIL))
 
-    | <head cons(HI THERE)
+    | <head cons(HI, THERE)
     = HI
 
-    | <tail cons(HI THERE)
+    | <tail cons(HI, THERE)
     = THERE
 
-    | <tail <tail (cons(HI cons(THERE NIL)))
+    | <tail <tail (cons(HI, cons(THERE, NIL)))
     = NIL
 
     | <tail FOO
-    ? Not a cons cell
+    ? tail: Not a cons cell
 
     | <head BAR
-    ? Not a cons cell
+    ? head: Not a cons cell
 
     | if TRUE then HI else THERE
     = HI
@@ -149,25 +172,25 @@ Examples
     | if HI then HERE else THERE
     = THERE
 
-    | eq?(HI THERE)
+    | eq?(HI, THERE)
     = FALSE
 
-    | eq?(HI HI)
+    | eq?(HI, HI)
     = TRUE
 
-    | cons? HI
+    | cons?(HI)
     = FALSE
 
-    | cons? cons(WAGGA NIL)
+    | cons?(cons(WAGGA, NIL))
     = TRUE
 
-    | not TRUE
+    | not(TRUE)
     = FALSE
 
-    | not FALSE
+    | not(FALSE)
     = TRUE
 
-    | not cons(WANGA NIL)
+    | not(cons(WANGA, NIL))
     = TRUE
 
     | #
@@ -183,7 +206,7 @@ Examples
 
     | def id(#)
     |     #
-    | id(FOO BAR)
+    | id(FOO, BAR)
     ? Arity mismatch
 
     | def id(#)
@@ -191,29 +214,29 @@ Examples
     | id(WOO)
     ? Arity mismatch
 
-    | def snd(##)
-    |     ##
-    | snd(FOO BAR)
+    | def snd(#, another)
+    |     another
+    | snd(FOO, BAR)
     = BAR
 
-    | def snd(##)
-    |     ##
+    | def snd(#, another)
+    |     another
     | snd(FOO)
     ? Arity mismatch
 
-    | def snoc(##)
-    |     cons(## #)
+    | def snoc(#, another)
+    |     cons(another, #)
     | snoc(THERE HI)
     = (HI THERE)
 
     | def count(#)
     |     self(<tail #)
-    | count(cons(A cons(B NIL)))
-    ? Not a cons cell
+    | count(cons(A, cons(B, NIL)))
+    ? tail: Not a cons cell
 
     | def count(#)
-    |     if eq?(# NIL) then NIL else self(<tail #)
-    | count(cons(A cons(B NIL)))
+    |     if eq?(#, NIL) then NIL else self(<tail #)
+    | count(cons(A, cons(B, NIL)))
     = NIL
 
     | def last(#)
@@ -221,27 +244,27 @@ Examples
     | last(cons(A cons(B GRAAAP)))
     = GRAAAP
 
-    | def count(##)
-    |     if eq?(# NIL) then ## else self(<tail # cons(ONE ##))
-    | count(cons(A cons(B NIL)) NIL)
+    | def count(#, acc)
+    |     if eq?(#, NIL) then ## else self(<tail #, cons(ONE, acc))
+    | count(cons(A, cons(B, NIL)), NIL)
     = (ONE (ONE NIL))
 
     | def double(#)
-    |     cons(# #)
+    |     cons(#, #)
     | def quadruple(#)
     |     double(double(#))
-    | quadruple MEOW
+    | quadruple(MEOW)
     = ((MEOW MEOW) (MEOW MEOW))
 
     | def quadruple(#)
     |     double(double(#))
     | def double(#)
-    |     cons(# #)
+    |     cons(#, #)
     | MEOW
     ? Undefined function
 
     | def urff(#)
-    |     self(cons(# #))
+    |     self(cons(#, #))
     | urff(WOOF)
     ? Expected <smaller>, found "cons"
 
@@ -250,15 +273,15 @@ Examples
     | urff(GRAAAAP)
     ? Expected <smaller>, found "#"
 
-    | def urff(##)
-    |     self(##)
-    | urff(GRAAAAP SKOOOORP)
-    ? Expected <smaller>, found "##"
+    | def urff(#, boof)
+    |     self(boof)
+    | urff(GRAAAAP, SKOOOORP)
+    ? Expected <smaller>, found "boof"
 
-    | def urff(##)
-    |     self(<tail ##)
-    | urff(GRAAAAP SKOOOORP)
-    ? Expected <smallerterm>, found "##"
+    | def urff(#, boof)
+    |     self(<tail boof)
+    | urff(GRAAAAP, SKOOOORP)
+    ? Expected <smallerterm>, found "boof"
 
     | def urff(#)
     |     self(WANGA)
@@ -266,20 +289,30 @@ Examples
     ? Expected <smaller>, found "WANGA"
 
     | def urff(#)
-    |     self(if eq?(self(#) A) then <head # else <tail #)
+    |     self(if eq?(A, A) then <head # else <tail #)
     | urff(GRAAAAP)
-    ? Expected <smaller>, found "self"
+    ? Expected <smaller>, found "if"
+
+    | def urff(#)
+    |     self(<if eq?(A, A) then <head # else <tail #)
+    | urff(GRAAAAP)
+    ? head: Not a cons cell
+
+    | def urff(#)
+    |     self(<if eq?(self(<head #), A) then <head # else <tail #)
+    | urff(GRAAAAP)
+    ? head: Not a cons cell
 
     | def urff(#)
     |     self(if self(<tail #) then <head # else <tail #)
     | urff(cons(GRAAAAP FARRRRP))
-    ? Not a cons cell
+    ? tail: Not a cons cell
 
 TODO more examples here...
 
 Discussion
 ----------
 
-I don't know if this holds water yet or not.
+I'm pretty sure this holds water, at this point.
 
 The name "Exanoke" started life as a typo for the word "example".
