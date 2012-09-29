@@ -116,7 +116,7 @@ class Parser(object):
         self.scanner.expect('(')
         self.scanner.expect('#')
         while self.scanner.consume(','):
-            args.push(self.ident())
+            args.append(self.ident())
         self.scanner.expect(')')
         expr = self.expr()
         return AST('FunDef', [expr] + args, value=name)
@@ -128,5 +128,57 @@ class Parser(object):
             self.scanner.expect(",")
             e2 = self.expr()
             self.scanner.expect(")")
-            return AST('Cons', e1, e2)
-        # ... and so forth
+            return AST('Cons', [e1, e2])
+        elif self.scanner.consume("if"):
+            e1 = self.expr()
+            self.scanner.expect("then")
+            e2 = self.expr()
+            self.scanner.expect("else")
+            e3 = self.expr()
+            return AST('If', [e1, e2, e3])
+        elif self.scanner.consume("self"):
+            args = []
+            self.scanner.expect("(")
+            e1 = self.smaller()
+            args.append(e1)
+            while self.scanner.consume(','):
+                args.append(self.expr())
+            return AST('Self', args)
+        elif self.scanner.consume("eq?"):
+            self.scanner.expect("(")
+            e1 = self.expr()
+            self.scanner.expect(",")
+            e2 = self.expr()
+            self.scanner.expect(")")
+            return AST('Eq?', [e1, e2])
+        elif self.scanner.consume("cons?"):
+            self.scanner.expect("(")
+            e1 = self.expr()
+            self.scanner.expect(")")
+            return AST('Cons?', [e1])
+            # and so forth
+        else:
+            raise SyntaxError
+
+    def smaller(self):
+        if self.scanner.consume("<head"):
+            e1 = self.smallerterm()
+            return AST('Head', [e1])
+        elif self.scanner.consume("<tail"):
+            e1 = self.smallerterm()
+            return AST('Tail', [e1])
+        elif self.scanner.consume("<if"):
+            e1 = self.expr()
+            self.scanner.expect("then")
+            e2 = self.smallerterm()
+            self.scanner.expect("else")
+            e3 = self.smallerterm()
+            return AST('If', [e1, e2, e3])
+        else:
+            raise SyntaxError
+
+    def smallerterm(self):
+        if self.scanner.consume("#"):
+            return AST('ArgRef', value=0)
+        else:
+            return self.smaller()
