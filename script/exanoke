@@ -147,6 +147,16 @@ class Parser(object):
             e2 = self.expr()
             self.scanner.expect(")")
             return AST('Cons', [e1, e2])
+        elif self.scanner.consume("head"):
+            self.scanner.expect("(")
+            e1 = self.expr()
+            self.scanner.expect(")")
+            return AST('Head', [e1])
+        elif self.scanner.consume("tail"):
+            self.scanner.expect("(")
+            e1 = self.expr()
+            self.scanner.expect(")")
+            return AST('Tail', [e1])
         elif self.scanner.consume("if"):
             e1 = self.expr()
             self.scanner.expect("then")
@@ -267,6 +277,12 @@ def eval(ast):
             return v1.tail
         except AttributeError:
             raise TypeError("tail: Not a cons cell")
+    elif ast.type == 'If':
+        v1 = eval(ast.children[0])
+        if v1 == 'TRUE':
+            return eval(ast.children[1])
+        else:
+            return eval(ast.children[2])
     elif ast.type == 'Eq?':
         v1 = eval(ast.children[0])
         v2 = eval(ast.children[1])

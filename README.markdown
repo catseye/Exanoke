@@ -112,6 +112,8 @@ Grammar
     Exanoke     ::= {FunDef} Expr.
     FunDef      ::= "def" Ident "(" "#" {"," Ident} ")" Expr.
     Expr        ::= "cons" "(" Expr "," Expr ")"
+                  | "head" "(" Expr ")"
+                  | "tail" "(" Expr ")"
                   | "if" Expr "then" Expr "else" Expr
                   | "self" "(" Smaller {"," Expr} ")"
                   | "eq?" "(" Expr "," Expr")"
@@ -156,20 +158,26 @@ Basic examples.
     | cons(HI, cons(THERE, NIL))
     = (HI (THERE NIL))
 
-    | <head cons(HI, THERE)
+    | head(cons(HI, THERE))
     = HI
 
-    | <tail cons(HI, THERE)
+    | tail(cons(HI, THERE))
     = THERE
 
-    | <tail <tail (cons(HI, cons(THERE, NIL)))
+    | tail(tail(cons(HI, cons(THERE, NIL))))
     = NIL
 
-    | <tail FOO
+    | tail(FOO)
     ? tail: Not a cons cell
 
-    | <head BAR
+    | head(BAR)
     ? head: Not a cons cell
+
+    | <head cons(HI, THERE)
+    ? Expected <smaller>, found "cons"
+
+    | <tail HI
+    ? Expected <smaller>, found "HI"
 
     | if TRUE then HI else THERE
     = HI
