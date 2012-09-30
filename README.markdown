@@ -110,25 +110,23 @@ Grammar
 -------
 
     Exanoke     ::= {FunDef} Expr.
-    FunDef      ::= "def" name<lowercase> "(" "#" {"," Arg} ")" Expr.
-    Arg         ::= name<lowercase>.
+    FunDef      ::= "def" Ident "(" "#" {"," Ident} ")" Expr.
     Expr        ::= "cons" "(" Expr "," Expr ")"
                   | "if" Expr "then" Expr "else" Expr
                   | "self" "(" Smaller {"," Expr} ")"
                   | "eq?" "(" Expr "," Expr")"
                   | "cons?" "(" Expr ")"
                   | "not" "(" Expr ")"
-                  | "(" Expr ")"
-                  | name<lowercase> "(" Expr {"," Expr} ")"
                   | "#"
-                  | Arg
                   | Atom
+                  | Ident ["(" Expr {"," Expr} ")"]
                   | Smaller.
     Smaller     ::= "<head" SmallerTerm
                   | "<tail" SmallerTerm
                   | "<if" Expr "then" Smaller "else" Smaller.
-    SmallerTerm ::= Smaller
-                  | FirstArg.
+    SmallerTerm ::= "#"
+                  | Smaller.
+    Ident       ::= name<lowercase>.
     Atom        ::= name<uppercase>.
 
 The first argument to a function does not have a user-defined name; it is
@@ -144,6 +142,13 @@ one with `TRUE` as the first argument and the other with `FALSE`.  I think.
 
 Examples
 --------
+
+    -> Tests for functionality "Evaluate Exanoke program"
+    
+    -> Functionality "Evaluate Exanoke program" is implemented by
+    -> shell command "script/exanoke %(test-file)"
+
+Basic examples.
 
     | cons(HI, THERE)
     = (HI THERE)
@@ -210,9 +215,14 @@ Examples
     ? Arity mismatch
 
     | def id(#)
-    |     ##
+    |     woo
     | id(WOO)
-    ? Arity mismatch
+    ? Undefined argument 'woo'
+
+    | def wat(#, woo)
+    |     woo(#)
+    | wat(WOO)
+    ? Undefined function 'woo'
 
     | def snd(#, another)
     |     another
@@ -240,12 +250,12 @@ Examples
     = NIL
 
     | def last(#)
-    |     if not cons? # then # else self(<tail #)
+    |     if not(cons?(#)) then # else self(<tail #)
     | last(cons(A cons(B GRAAAP)))
     = GRAAAP
 
     | def count(#, acc)
-    |     if eq?(#, NIL) then ## else self(<tail #, cons(ONE, acc))
+    |     if eq?(#, NIL) then acc else self(<tail #, cons(ONE, acc))
     | count(cons(A, cons(B, NIL)), NIL)
     = (ONE (ONE NIL))
 
@@ -261,7 +271,7 @@ Examples
     | def double(#)
     |     cons(#, #)
     | MEOW
-    ? Undefined function
+    ? Undefined function 'double'
 
     | def urff(#)
     |     self(cons(#, #))
@@ -304,8 +314,8 @@ Examples
     ? head: Not a cons cell
 
     | def urff(#)
-    |     self(if self(<tail #) then <head # else <tail #)
-    | urff(cons(GRAAAAP FARRRRP))
+    |     self(<if self(<tail #) then <head # else <tail #)
+    | urff(cons(GRAAAAP, FARRRRP))
     ? tail: Not a cons cell
 
 TODO more examples here...
