@@ -97,6 +97,8 @@ class Parser(object):
     def __init__(self, text):
         self.scanner = Scanner(text)
         self.defining = None
+        self.defined = set()
+        self.formals = None
 
     def program(self):
         fundefs = []
@@ -115,15 +117,24 @@ class Parser(object):
     def fundef(self):
         self.scanner.expect('def')
         name = self.ident()
+        if name in self.defined:
+            raise SyntaxError('Function "%s" already defined' % name)
         args = []
         self.scanner.expect('(')
         self.scanner.expect('#')
+        self.formals = {}
+        i = 1
         while self.scanner.consume(','):
-            args.append(self.ident())
+            ident = self.ident()
+            args.append(ident)
+            self.formals[ident] = i
+            i += 1
         self.scanner.expect(')')
         self.defining = name
         expr = self.expr()
         self.defining = None
+        self.formals = None
+        self.defined.add(name)
         return AST('FunDef', [expr] + args, value=name)
 
     def expr(self):
@@ -182,13 +193,17 @@ class Parser(object):
             self.scanner.scan()
             if self.scanner.on('('):
                 self.scanner.expect('(')
+                if ident not in self.defined:
+                    raise SyntaxError('Undefined function "%s"' % ident)
                 args = [self.expr()]
                 while self.scanner.consume(','):
                     args.append(self.expr())
                 self.scanner.expect(')')
                 return AST('Call', args, value=ident)
             else:
-                return AST('ArgRef', value=ident)
+                if ident not in self.formals:
+                    raise SyntaxError('Undefined argument "%s"' % ident)
+                return AST('ArgRef', value=self.formals[ident])
         else:
             return self.smaller()
 

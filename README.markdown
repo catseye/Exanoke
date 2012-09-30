@@ -217,12 +217,29 @@ Basic examples.
     | def id(#)
     |     woo
     | id(WOO)
-    ? Undefined argument 'woo'
+    ? Undefined argument "woo"
 
     | def wat(#, woo)
     |     woo(#)
     | wat(WOO)
-    ? Undefined function 'woo'
+    ? Undefined function "woo"
+
+    | def wat(#)
+    |     THERE
+    | def wat(#)
+    |     HI
+    | wat(WOO)
+    ? Function "wat" already defined
+
+    | def WAT(#)
+    |     #
+    | WAT(WOO)
+    ? Expected identifier, but found atom ('WAT')
+
+    | def wat(meow)
+    |     meow
+    | wat(WOO)
+    ? Expected '#', but found 'meow'
 
     | def snd(#, another)
     |     another
@@ -271,7 +288,7 @@ Basic examples.
     | def double(#)
     |     cons(#, #)
     | MEOW
-    ? Undefined function 'double'
+    ? Undefined function "double"
 
     | def urff(#)
     |     self(cons(#, #))
