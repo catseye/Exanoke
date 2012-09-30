@@ -153,7 +153,7 @@ Basic examples.
     | cons(HI, THERE)
     = (HI THERE)
     
-    | (cons(HI, cons(THERE, NIL)))
+    | cons(HI, cons(THERE, NIL))
     = (HI (THERE NIL))
 
     | <head cons(HI, THERE)
@@ -236,7 +236,7 @@ Basic examples.
 
     | def snoc(#, another)
     |     cons(another, #)
-    | snoc(THERE HI)
+    | snoc(THERE, HI)
     = (HI THERE)
 
     | def count(#)
@@ -251,7 +251,7 @@ Basic examples.
 
     | def last(#)
     |     if not(cons?(#)) then # else self(<tail #)
-    | last(cons(A cons(B GRAAAP)))
+    | last(cons(A, cons(B, GRAAAP)))
     = GRAAAP
 
     | def count(#, acc)
@@ -291,7 +291,7 @@ Basic examples.
     | def urff(#, boof)
     |     self(<tail boof)
     | urff(GRAAAAP, SKOOOORP)
-    ? Expected <smallerterm>, found "boof"
+    ? Expected <smaller>, found "boof"
 
     | def urff(#)
     |     self(WANGA)

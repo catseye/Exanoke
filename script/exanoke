@@ -199,7 +199,8 @@ class Parser(object):
             e3 = self.smallerterm()
             return AST('If', [e1, e2, e3])
         else:
-            raise SyntaxError('Unrecognized term "%s"' % self.scanner.token)
+            raise SyntaxError('Expected <smaller>, found "%s"' %
+                              self.scanner.token)
 
     def smallerterm(self):
         if self.scanner.consume("#"):
@@ -229,7 +230,11 @@ def main(argv):
     text = file.read()
     file.close()
     p = Parser(text)
-    prog = p.program()
+    try:
+        prog = p.program()
+    except SyntaxError as e:
+        print >>sys.stderr, str(e)
+        sys.exit(1)
     if options.show_ast:
         from pprint import pprint
         pprint(prog)
