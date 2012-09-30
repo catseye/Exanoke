@@ -56,7 +56,9 @@ class Scanner(object):
             return
         if self.scan_pattern(r'[A-Z]+', 'atom'):
             return
-        if self.scan_pattern(r'\<?[a-z]+\??', 'identifier'):
+        if self.scan_pattern(r'[a-z]+\??', 'identifier'):
+            return
+        if self.scan_pattern(r'\<[a-z]+', 'smallifier'):
             return
         if self.scan_pattern(r'.', 'unknown character'):
             return
@@ -201,6 +203,9 @@ class Parser(object):
                 self.scanner.expect(')')
                 return AST('Call', args, value=ident)
             else:
+                if self.defining is None:
+                    raise SyntaxError('Reference to argument "%s" '
+                                      'outside of a function body' % ident)
                 if ident not in self.formals:
                     raise SyntaxError('Undefined argument "%s"' % ident)
                 return AST('ArgRef', value=self.formals[ident])
@@ -230,6 +235,61 @@ class Parser(object):
             return AST('ArgRef', value=0)
         else:
             return self.smaller()
+
+
+### Runtime ###
+
+class Cons(object):
+    def __init__(self, head, tail):
+        self.head = head
+        self.tail = tail
+
+    def __str__(self):
+        return "(%s %s)" % (self.head, self.tail)
+
+
+def eval(ast):
+    if ast.type == 'Atom':
+        return ast.value
+    elif ast.type == 'Cons':
+        v1 = eval(ast.children[0])
+        v2 = eval(ast.children[1])
+        return Cons(v1, v2)
+    elif ast.type == 'Head':
+        v1 = eval(ast.children[0])
+        try:
+            return v1.head
+        except AttributeError:
+            raise TypeError("head: Not a cons cell")
+    elif ast.type == 'Tail':
+        v1 = eval(ast.children[0])
+        try:
+            return v1.tail
+        except AttributeError:
+            raise TypeError("tail: Not a cons cell")
+    elif ast.type == 'Eq?':
+        v1 = eval(ast.children[0])
+        v2 = eval(ast.children[1])
+        if v1 == v2:
+            return 'TRUE'
+        else:
+            return 'FALSE'
+    elif ast.type == 'Cons?':
+        v1 = eval(ast.children[0])
+        if isinstance(v1, Cons):
+            return 'TRUE'
+        else:
+            return 'FALSE'
+    elif ast.type == 'Not':
+        v1 = eval(ast.children[0])
+        if v1 == 'TRUE':
+            return 'FALSE'
+        else:
+            return 'TRUE'
+    elif ast.type == 'Program':
+        expr = ast.children[0]
+        fundefs = ast.children[1:]
+        return eval(expr)
 
 
 def main(argv):
@@ -262,7 +322,11 @@ def main(argv):
         from pprint import pprint
         pprint(prog)
         sys.exit(0)
-    # eval prog
+    try:
+        print str(eval(prog))
+    except TypeError as e:
+        print >>sys.stderr, str(e)
+        sys.exit(1)
     sys.exit(0)
 
 
