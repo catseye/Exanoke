@@ -96,11 +96,13 @@ class Scanner(object):
 class Parser(object):
     def __init__(self, text):
         self.scanner = Scanner(text)
+        self.defining = None
 
     def program(self):
         fundefs = []
         while self.scanner.on('def'):
             fundefs.append(self.fundef())
+        self.defining = None
         expr = self.expr()
         return AST('Program', [expr] + fundefs)
 
@@ -119,7 +121,9 @@ class Parser(object):
         while self.scanner.consume(','):
             args.append(self.ident())
         self.scanner.expect(')')
+        self.defining = name
         expr = self.expr()
+        self.defining = None
         return AST('FunDef', [expr] + args, value=name)
 
     def expr(self):
@@ -138,6 +142,8 @@ class Parser(object):
             e3 = self.expr()
             return AST('If', [e1, e2, e3])
         elif self.scanner.consume("self"):
+            if self.defining is None:
+                raise SyntaxError('Use of "self" outside of a function body')
             args = []
             self.scanner.expect("(")
             e1 = self.smaller()
@@ -164,6 +170,8 @@ class Parser(object):
             self.scanner.expect(")")
             return AST('Not', [e1])
         elif self.scanner.consume("#"):
+            if self.defining is None:
+                raise SyntaxError('Use of "#" outside of a function body')
             return AST('ArgRef', value=0)
         elif self.scanner.on_type("atom"):
             atom = self.scanner.token

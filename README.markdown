@@ -199,10 +199,10 @@ Basic examples.
     = TRUE
 
     | #
-    ? Not in a function body
+    ? Use of "#" outside of a function body
 
     | self(FOO)
-    ? Not in a function body
+    ? Use of "self" outside of a function body
 
     | def id(#)
     |     #
