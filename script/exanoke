@@ -258,54 +258,73 @@ class Cons(object):
         return "(%s %s)" % (self.head, self.tail)
 
 
-def eval(ast):
-    if ast.type == 'Atom':
-        return ast.value
-    elif ast.type == 'Cons':
-        v1 = eval(ast.children[0])
-        v2 = eval(ast.children[1])
-        return Cons(v1, v2)
-    elif ast.type == 'Head':
-        v1 = eval(ast.children[0])
-        try:
-            return v1.head
-        except AttributeError:
-            raise TypeError("head: Not a cons cell")
-    elif ast.type == 'Tail':
-        v1 = eval(ast.children[0])
-        try:
-            return v1.tail
-        except AttributeError:
-            raise TypeError("tail: Not a cons cell")
-    elif ast.type == 'If':
-        v1 = eval(ast.children[0])
-        if v1 == 'TRUE':
-            return eval(ast.children[1])
+class Evaluator(object):
+    def __init__(self, ast):
+        self.fundefs = {}
+        for fundef in ast.children[1:]:
+            self.fundefs[fundef.value] = {
+                'expr': fundef.children[0],
+                'args': fundef.children[1:],
+            }
+        self.bindings = []
+
+    def eval(self, ast):
+        if ast.type == 'Atom':
+            return ast.value
+        elif ast.type == 'Cons':
+            v1 = self.eval(ast.children[0])
+            v2 = self.eval(ast.children[1])
+            return Cons(v1, v2)
+        elif ast.type == 'Head':
+            v1 = self.eval(ast.children[0])
+            try:
+                return v1.head
+            except AttributeError:
+                raise TypeError("head: Not a cons cell")
+        elif ast.type == 'Tail':
+            v1 = self.eval(ast.children[0])
+            try:
+                return v1.tail
+            except AttributeError:
+                raise TypeError("tail: Not a cons cell")
+        elif ast.type == 'If':
+            v1 = self.eval(ast.children[0])
+            if v1 == 'TRUE':
+                return self.eval(ast.children[1])
+            else:
+                return self.eval(ast.children[2])
+        elif ast.type == 'Eq?':
+            v1 = self.eval(ast.children[0])
+            v2 = self.eval(ast.children[1])
+            if v1 == v2:
+                return 'TRUE'
+            else:
+                return 'FALSE'
+        elif ast.type == 'Cons?':
+            v1 = self.eval(ast.children[0])
+            if isinstance(v1, Cons):
+                return 'TRUE'
+            else:
+                return 'FALSE'
+        elif ast.type == 'Not':
+            v1 = self.eval(ast.children[0])
+            if v1 == 'TRUE':
+                return 'FALSE'
+            else:
+                return 'TRUE'
+        elif ast.type == 'Call':
+            fun = self.fundefs[ast.value]
+            bindings = self.bindings
+            self.bindings = [self.eval(expr) for expr in ast.children]
+            result = self.eval(fun['expr'])
+            self.bindings = bindings
+            return result
+        elif ast.type == 'ArgRef':
+            return self.bindings[ast.value]
+        elif ast.type == 'Program':
+            return self.eval(ast.children[0])
         else:
-            return eval(ast.children[2])
-    elif ast.type == 'Eq?':
-        v1 = eval(ast.children[0])
-        v2 = eval(ast.children[1])
-        if v1 == v2:
-            return 'TRUE'
-        else:
-            return 'FALSE'
-    elif ast.type == 'Cons?':
-        v1 = eval(ast.children[0])
-        if isinstance(v1, Cons):
-            return 'TRUE'
-        else:
-            return 'FALSE'
-    elif ast.type == 'Not':
-        v1 = eval(ast.children[0])
-        if v1 == 'TRUE':
-            return 'FALSE'
-        else:
-            return 'TRUE'
-    elif ast.type == 'Program':
-        expr = ast.children[0]
-        fundefs = ast.children[1:]
-        return eval(expr)
+            raise NotImplementedError("%s" % ast)
 
 
 def main(argv):
@@ -339,7 +358,8 @@ def main(argv):
         pprint(prog)
         sys.exit(0)
     try:
-        print str(eval(prog))
+        ev = Evaluator(prog)
+        print str(ev.eval(prog))
     except TypeError as e:
         print >>sys.stderr, str(e)
         sys.exit(1)
