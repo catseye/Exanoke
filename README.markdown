@@ -1,8 +1,6 @@
 Exanoke
 =======
 
-*This language is a work very much in progress.*
-
 _Exanoke_ is a pure functional language which is syntactically restricted to
 expressing the primitive recursive functions.
 
@@ -134,13 +132,10 @@ Grammar
 The first argument to a function does not have a user-defined name; it is
 simply referred to as `#`.
 
-The names of arguments defined in a function shall not shadow the names of
-any previously-defined functions.
-
 Note that `<if` does not seem to be truly necessary.  Its only use is to embed
 a conditional into the first argument being passed to a recursive call.  You
 could also use a regular `if` and make the recursive call in both branches,
-one with `TRUE` as the first argument and the other with `FALSE`.  I think.
+one with `TRUE` as the first argument and the other with `FALSE`.
 
 Examples
 --------
@@ -298,6 +293,16 @@ Basic examples.
     | MEOW
     ? Undefined function "double"
 
+Argument names may shadow previously-defined functions, because we
+can syntactically tell them apart.
+
+    | def snoc(#, other)
+    |     cons(other, #)
+    | def snocsnoc(#, snoc)
+    |     snoc(snoc(snoc, #), #)
+    | snocsnoc(BLARCH, GLAMCH)
+    = (BLARCH (BLARCH GLAMCH))
+
     | def urff(#)
     |     self(<tail #, <head #)
     | urff(WOOF)
@@ -353,11 +358,12 @@ Basic examples.
     | urff(cons(GRAAAAP, FARRRRP))
     ? tail: Not a cons cell
 
-TODO more examples here...
+TODO
+----
+
+Give a practical example computing, say, factorial.
 
 Discussion
 ----------
-
-I'm pretty sure this holds water, at this point.
 
 The name "Exanoke" started life as a typo for the word "example".
