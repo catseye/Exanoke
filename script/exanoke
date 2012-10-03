@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 # Exanoke reference interpreter
+# ... implemented in a Questionable Manner
 
 from optparse import OptionParser
 import re
@@ -99,7 +100,8 @@ class Parser(object):
     def __init__(self, text):
         self.scanner = Scanner(text)
         self.defining = None
-        self.defined = set()
+        self.self_arity = None
+        self.defined = {}
         self.formals = None
 
     def program(self):
@@ -133,10 +135,12 @@ class Parser(object):
             i += 1
         self.scanner.expect(')')
         self.defining = name
+        self.self_arity = len(args) + 1
         expr = self.expr()
         self.defining = None
+        self.self_arity = None
         self.formals = None
-        self.defined.add(name)
+        self.defined[name] = len(args) + 1
         return AST('FunDef', [expr] + args, value=name)
 
     def expr(self):
@@ -173,8 +177,11 @@ class Parser(object):
             args.append(e1)
             while self.scanner.consume(','):
                 args.append(self.expr())
+            if len(args) != self.self_arity:
+                raise SyntaxError('Arity mismatch on self (expected %d, got %d)' %
+                    (self.self_arity, len(args)))
             self.scanner.expect(")")
-            return AST('Self', args)
+            return AST('Call', args, value=self.defining)
         elif self.scanner.consume("eq?"):
             self.scanner.expect("(")
             e1 = self.expr()
@@ -210,6 +217,9 @@ class Parser(object):
                 args = [self.expr()]
                 while self.scanner.consume(','):
                     args.append(self.expr())
+                if len(args) != self.defined[ident]:
+                    raise SyntaxError('Arity mismatch (expected %d, got %d)' %
+                        (self.defined[ident], len(args)))
                 self.scanner.expect(')')
                 return AST('Call', args, value=ident)
             else:

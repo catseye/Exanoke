@@ -220,7 +220,7 @@ Basic examples.
     | def id(#)
     |     #
     | id(FOO, BAR)
-    ? Arity mismatch
+    ? Arity mismatch (expected 1, got 2)
 
     | def id(#)
     |     woo
@@ -257,7 +257,7 @@ Basic examples.
     | def snd(#, another)
     |     another
     | snd(FOO)
-    ? Arity mismatch
+    ? Arity mismatch (expected 2, got 1)
 
     | def snoc(#, another)
     |     cons(another, #)
@@ -297,6 +297,16 @@ Basic examples.
     |     cons(#, #)
     | MEOW
     ? Undefined function "double"
+
+    | def urff(#)
+    |     self(<tail #, <head #)
+    | urff(WOOF)
+    ? Arity mismatch on self (expected 1, got 2)
+
+    | def urff(#, other)
+    |     self(<tail #)
+    | urff(WOOF, MOO)
+    ? Arity mismatch on self (expected 2, got 1)
 
     | def urff(#)
     |     self(cons(#, #))
