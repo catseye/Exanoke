@@ -99,10 +99,16 @@ Data types
 ----------
 
 Let's just go with pairs and atoms for now, although natural numbers would
-be easy to add too.  Atoms are all-uppercase, and `TRUE` is the only truthy
-atom.  Lists are by convention only (and by convention, lists compose via
-the second element of each pair, and `NIL` is the agreed-upon list-terminating
-atom, much love to it.)
+be easy to add too.  Following Ruby, atoms are preceded by a colon; while I
+find this syntax somewhat obnoxious, it is less obnoxious than requiring that
+atoms are in ALL CAPS, which is what Exanoke originally had.  In truth, there
+would be no real problem with allowing atoms, parameters, and function names
+to all be arbitrarily alphanumeric, but it would require more static context
+checking to sort them all out, and we're trying to be heavily syntactic here.
+
+`:true` is the only truthy atom.  Lists are by convention only, and, by
+convention, lists compose via the second element of each pair, and `:nil` is
+the agreed-upon list-terminating atom, much love to it.
 
 Grammar
 -------
@@ -118,7 +124,7 @@ Grammar
                   | "cons?" "(" Expr ")"
                   | "not" "(" Expr ")"
                   | "#"
-                  | Atom
+                  | ":" Ident
                   | Ident ["(" Expr {"," Expr} ")"]
                   | Smaller.
     Smaller     ::= "<head" SmallerTerm
@@ -126,16 +132,17 @@ Grammar
                   | "<if" Expr "then" Smaller "else" Smaller.
     SmallerTerm ::= "#"
                   | Smaller.
-    Ident       ::= name<lowercase>.
-    Atom        ::= name<uppercase>.
+    Ident       ::= name.
 
 The first argument to a function does not have a user-defined name; it is
-simply referred to as `#`.
+simply referred to as `#`.  Again, there would be no real problem if we were
+to allow the programmer to give it a better name, but more static context
+checking would be involved.
 
 Note that `<if` does not seem to be truly necessary.  Its only use is to embed
 a conditional into the first argument being passed to a recursive call.  You
 could also use a regular `if` and make the recursive call in both branches,
-one with `TRUE` as the first argument and the other with `FALSE`.
+one with `:true` as the first argument and the other with `:false`.
 
 Examples
 --------
@@ -147,150 +154,158 @@ Examples
 
 Basic examples.
 
-    | cons(HI, THERE)
-    = (HI THERE)
+    | cons(:hi, :there)
+    = (:hi :there)
     
-    | cons(HI, cons(THERE, NIL))
-    = (HI (THERE NIL))
+    | cons(:hi, cons(:there, :nil))
+    = (:hi (:there :nil))
 
-    | head(cons(HI, THERE))
-    = HI
+    | head(cons(:hi, :there))
+    = :hi
 
-    | tail(cons(HI, THERE))
-    = THERE
+    | tail(cons(:hi, :there))
+    = :there
 
-    | tail(tail(cons(HI, cons(THERE, NIL))))
-    = NIL
+    | tail(tail(cons(:hi, cons(:there, :nil))))
+    = :nil
 
-    | tail(FOO)
+    | tail(:foo)
     ? tail: Not a cons cell
 
-    | head(BAR)
+    | head(:bar)
     ? head: Not a cons cell
 
-    | <head cons(HI, THERE)
+    | <head cons(:hi, :there)
     ? Expected <smaller>, found "cons"
 
-    | <tail HI
-    ? Expected <smaller>, found "HI"
+    | <tail :hi
+    ? Expected <smaller>, found ":hi"
 
-    | if TRUE then HI else THERE
-    = HI
+    | if :true then :hi else :there
+    = :hi
 
-    | if HI then HERE else THERE
-    = THERE
+    | if :hi then :here else :there
+    = :there
 
-    | eq?(HI, THERE)
-    = FALSE
+    | eq?(:hi, :there)
+    = :false
 
-    | eq?(HI, HI)
-    = TRUE
+    | eq?(:hi, :hi)
+    = :true
 
-    | cons?(HI)
-    = FALSE
+    | cons?(:hi)
+    = :false
 
-    | cons?(cons(WAGGA, NIL))
-    = TRUE
+    | cons?(cons(:wagga, :nil))
+    = :true
 
-    | not(TRUE)
-    = FALSE
+    | not(:true)
+    = :false
 
-    | not(FALSE)
-    = TRUE
+    | not(:false)
+    = :true
 
-    | not(cons(WANGA, NIL))
-    = TRUE
+Cons cells are falsey.
+
+    | not(cons(:wanga, :nil))
+    = :true
+
+`self` and `#` can only be used inside function definitions.
 
     | #
     ? Use of "#" outside of a function body
 
-    | self(FOO)
+    | self(:foo)
     ? Use of "self" outside of a function body
 
     | def id(#)
     |     #
-    | id(WOO)
-    = WOO
+    | id(:woo)
+    = :woo
 
     | def id(#)
     |     #
-    | id(FOO, BAR)
+    | id(:foo, :bar)
     ? Arity mismatch (expected 1, got 2)
 
     | def id(#)
     |     woo
-    | id(WOO)
+    | id(:woo)
     ? Undefined argument "woo"
 
     | def wat(#, woo)
     |     woo(#)
-    | wat(WOO)
+    | wat(:woo)
     ? Undefined function "woo"
 
     | def wat(#)
-    |     THERE
+    |     :there
     | def wat(#)
-    |     HI
-    | wat(WOO)
+    |     :hi
+    | wat(:woo)
     ? Function "wat" already defined
 
-    | def WAT(#)
+    | def :wat(#)
     |     #
-    | WAT(WOO)
-    ? Expected identifier, but found atom ('WAT')
+    | :wat(:woo)
+    ? Expected identifier, but found atom (':wat')
 
     | def wat(meow)
     |     meow
-    | wat(WOO)
+    | wat(:woo)
     ? Expected '#', but found 'meow'
 
     | def snd(#, another)
     |     another
-    | snd(FOO, BAR)
-    = BAR
+    | snd(:foo, :bar)
+    = :bar
 
     | def snd(#, another)
     |     another
-    | snd(FOO)
+    | snd(:foo)
     ? Arity mismatch (expected 2, got 1)
 
     | def snoc(#, another)
     |     cons(another, #)
-    | snoc(THERE, HI)
-    = (HI THERE)
+    | snoc(:there, :hi)
+    = (:hi :there)
 
     | def count(#)
     |     self(<tail #)
-    | count(cons(A, cons(B, NIL)))
+    | count(cons(:alpha, cons(:beta, :nil)))
     ? tail: Not a cons cell
 
     | def count(#)
-    |     if eq?(#, NIL) then NIL else self(<tail #)
-    | count(cons(A, cons(B, NIL)))
-    = NIL
+    |     if eq?(#, :nil) then :nil else self(<tail #)
+    | count(cons(:alpha, cons(:beta, :nil)))
+    = :nil
 
     | def last(#)
     |     if not(cons?(#)) then # else self(<tail #)
-    | last(cons(A, cons(B, GRAAAP)))
-    = GRAAAP
+    | last(cons(:alpha, cons(:beta, :graaap)))
+    = :graaap
 
     | def count(#, acc)
-    |     if eq?(#, NIL) then acc else self(<tail #, cons(ONE, acc))
-    | count(cons(A, cons(B, NIL)), NIL)
-    = (ONE (ONE NIL))
+    |     if eq?(#, :nil) then acc else self(<tail #, cons(:one, acc))
+    | count(cons(:A, cons(:B, :nil)), :nil)
+    = (:one (:one :nil))
+
+Functions can call other user-defined functions.
 
     | def double(#)
     |     cons(#, #)
     | def quadruple(#)
     |     double(double(#))
-    | quadruple(MEOW)
-    = ((MEOW MEOW) (MEOW MEOW))
+    | quadruple(:meow)
+    = ((:meow :meow) (:meow :meow))
+
+Functions must be defined before they are called.
 
     | def quadruple(#)
     |     double(double(#))
     | def double(#)
     |     cons(#, #)
-    | MEOW
+    | :meow
     ? Undefined function "double"
 
 Argument names may shadow previously-defined functions, because we
@@ -300,62 +315,62 @@ can syntactically tell them apart.
     |     cons(other, #)
     | def snocsnoc(#, snoc)
     |     snoc(snoc(snoc, #), #)
-    | snocsnoc(BLARCH, GLAMCH)
-    = (BLARCH (BLARCH GLAMCH))
+    | snocsnoc(:blarch, :glamch)
+    = (:blarch (:blarch :glamch))
 
     | def urff(#)
     |     self(<tail #, <head #)
-    | urff(WOOF)
+    | urff(:woof)
     ? Arity mismatch on self (expected 1, got 2)
 
     | def urff(#, other)
     |     self(<tail #)
-    | urff(WOOF, MOO)
+    | urff(:woof, :moo)
     ? Arity mismatch on self (expected 2, got 1)
 
     | def urff(#)
     |     self(cons(#, #))
-    | urff(WOOF)
+    | urff(:woof)
     ? Expected <smaller>, found "cons"
 
     | def urff(#)
     |     self(#)
-    | urff(GRAAAAP)
+    | urff(:graaap)
     ? Expected <smaller>, found "#"
 
     | def urff(#, boof)
     |     self(boof)
-    | urff(GRAAAAP, SKOOOORP)
+    | urff(:graaap, :skooorp)
     ? Expected <smaller>, found "boof"
 
     | def urff(#, boof)
     |     self(<tail boof)
-    | urff(GRAAAAP, SKOOOORP)
+    | urff(:graaap, :skooorp)
     ? Expected <smaller>, found "boof"
 
     | def urff(#)
-    |     self(WANGA)
-    | urff(GRAAAAP)
-    ? Expected <smaller>, found "WANGA"
+    |     self(:wanga)
+    | urff(:graaap)
+    ? Expected <smaller>, found ":wanga"
 
     | def urff(#)
-    |     self(if eq?(A, A) then <head # else <tail #)
-    | urff(GRAAAAP)
+    |     self(if eq?(:alpha, :alpha) then <head # else <tail #)
+    | urff(:graaap)
     ? Expected <smaller>, found "if"
 
     | def urff(#)
-    |     self(<if eq?(A, A) then <head # else <tail #)
-    | urff(GRAAAAP)
+    |     self(<if eq?(:alpha, :alpha) then <head # else <tail #)
+    | urff(:graaap)
     ? head: Not a cons cell
 
     | def urff(#)
-    |     self(<if eq?(self(<head #), A) then <head # else <tail #)
-    | urff(GRAAAAP)
+    |     self(<if eq?(self(<head #), :alpha) then <head # else <tail #)
+    | urff(:graaap)
     ? head: Not a cons cell
 
     | def urff(#)
     |     self(<if self(<tail #) then <head # else <tail #)
-    | urff(cons(GRAAAAP, FARRRRP))
+    | urff(cons(:graaap, :skooorp))
     ? tail: Not a cons cell
 
 TODO

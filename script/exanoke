@@ -55,9 +55,9 @@ class Scanner(object):
             return
         if self.scan_pattern(r'\(|\)|\,|\#', 'goose egg'):
             return
-        if self.scan_pattern(r'[A-Z]+', 'atom'):
+        if self.scan_pattern(r':[a-zA-Z]+', 'atom'):
             return
-        if self.scan_pattern(r'[a-z]+\??', 'identifier'):
+        if self.scan_pattern(r'[a-zA-Z]+\??', 'identifier'):
             return
         if self.scan_pattern(r'\<[a-z]+', 'smallifier'):
             return
@@ -299,7 +299,7 @@ class Evaluator(object):
                 raise TypeError("tail: Not a cons cell")
         elif ast.type == 'If':
             v1 = self.eval(ast.children[0])
-            if v1 == 'TRUE':
+            if v1 == ':true':
                 return self.eval(ast.children[1])
             else:
                 return self.eval(ast.children[2])
@@ -307,21 +307,21 @@ class Evaluator(object):
             v1 = self.eval(ast.children[0])
             v2 = self.eval(ast.children[1])
             if v1 == v2:
-                return 'TRUE'
+                return ':true'
             else:
-                return 'FALSE'
+                return ':false'
         elif ast.type == 'Cons?':
             v1 = self.eval(ast.children[0])
             if isinstance(v1, Cons):
-                return 'TRUE'
+                return ':true'
             else:
-                return 'FALSE'
+                return ':false'
         elif ast.type == 'Not':
             v1 = self.eval(ast.children[0])
-            if v1 == 'TRUE':
-                return 'FALSE'
+            if v1 == ':true':
+                return ':false'
             else:
-                return 'TRUE'
+                return ':true'
         elif ast.type == 'Call':
             fun = self.fundefs[ast.value]
             bindings = self.bindings
