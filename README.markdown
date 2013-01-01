@@ -5,8 +5,8 @@ _Exanoke_ is a pure functional language which is syntactically restricted to
 expressing the primitive recursive functions.
 
 I'll assume you know what a primitive recursive function is.  If not, go look
-it up, it's quite interesting, even if only for the fact that it demonstrates
-even a genius like Kurt Goedel can sometimes be mistaken.  (He initially
+it up, as it's quite interesting, if only for the fact that it demonstrates
+even a genius like Kurt Gödel can sometimes be mistaken.  (He initially
 thought that all functions could be expressed primitive recursively, until
 Ackermann came up with a counterexample.)
 
@@ -23,6 +23,9 @@ language, and it's fairly easy to restrict an imperative language in this
 way.  In PL-{GOTO}'s case, they just took PL and removed the `GOTO` construct.
 The rest of the language essentially contains only `for` loops, so what you
 get is something in which you can only express primitive recursive functions.
+(That imperative programs consisting of only `for` loops can express only and
+exactly the primitive recursive functions was established by Meyer and Ritchie
+in "The complexity of loop programs".)
 
 But what about functional languages?
 
@@ -33,8 +36,13 @@ primitive recursive functions in it or not.
 
 Thing is, that's kind of difficult.  Is it possible to take the same approach
 PL-{GOTO} takes, and *syntactically* restrict a functional language to the
-primitive recursive functions?  It *should* be possible... and easier than
-statically analyzing an arbitrary program... but it's not immediately trivial.
+primitive recursive functions?
+
+I mean, in a trivial sense, it must be; the original primitive recursive
+formulae *were* functions.  But they were highly arithmetical, with bounded
+sums and products and whatnot.  What would it look like in the setting of
+general (and symbolic) functional programming?
+
 Functional languages don't do the `for` loop thing, they do the recursion
 thing, and there are no natural bounds on that recursion, so those would have
 to be embodied by the grammar, and... well, it sounds interesting, but
@@ -78,20 +86,20 @@ passed to, or returned from, functions.
 ### Note on Critical Arguments ###
 
 I should note, though, that the second point is an oversimplification.
-Not *all* arguments need to be strictly "smaller" upon recursion -- only
+Not *all* arguments need to be strictly "smaller" upon recursion — only
 those arguments which are used to determine *if* the function recurses.
 I'll call those the _critical arguments_.  Other arguments can take on
 any value (which is useful for having "accumulator" arguments and such.)
 
 When statically analyzing a function for primitive recursive-ness, you
-need to check how it decides to rescurse, to find out which arguments are
+need to check how it decides to recurse, to find out which arguments are
 the critical arguments, so you can check that those ones always get
 "smaller".
 
-But we can proceed in a simpler fashion here -- we can simply say that
+But we can proceed in a simpler fashion here — we can simply say that
 the first argument to every function is the critical argument, and all
-the rest aren't.  I believe this is without loss of generality, as we can
-always split some functionality which would require more than one critical
+the rest aren't.  This is without loss of generality, as we can always
+split some functionality which would require more than one critical
 argument across multiple functions, each of which only has one critical
 argument.  (Much like every `for` loop has only one loop variable.)
 
@@ -103,8 +111,9 @@ be easy to add too.  Following Ruby, atoms are preceded by a colon; while I
 find this syntax somewhat obnoxious, it is less obnoxious than requiring that
 atoms are in ALL CAPS, which is what Exanoke originally had.  In truth, there
 would be no real problem with allowing atoms, parameters, and function names
-to all be arbitrarily alphanumeric, but it would require more static context
-checking to sort them all out, and we're trying to be heavily syntactic here.
+(and even `self`) to all be arbitrarily alphanumeric, but it would require
+more static context checking to sort them all out, and we're trying to be
+as syntactic as reasonably possible here.
 
 `:true` is the only truthy atom.  Lists are by convention only, and, by
 convention, lists compose via the second element of each pair, and `:nil` is
@@ -139,8 +148,8 @@ simply referred to as `#`.  Again, there would be no real problem if we were
 to allow the programmer to give it a better name, but more static context
 checking would be involved.
 
-Note that `<if` does not seem to be truly necessary.  Its only use is to embed
-a conditional into the first argument being passed to a recursive call.  You
+Note that `<if` is not truly necessary.  Its only use is to embed a
+conditional into the first argument being passed to a recursive call.  You
 could also use a regular `if` and make the recursive call in both branches,
 one with `:true` as the first argument and the other with `:false`.
 
@@ -152,7 +161,7 @@ Examples
     -> Functionality "Evaluate Exanoke program" is implemented by
     -> shell command "script/exanoke %(test-file)"
 
-Basic examples.
+`cons` can be used to make lists and trees and things.
 
     | cons(:hi, :there)
     = (:hi :there)
@@ -160,8 +169,15 @@ Basic examples.
     | cons(:hi, cons(:there, :nil))
     = (:hi (:there :nil))
 
+`head` extracts the first element of a cons cell.
+
     | head(cons(:hi, :there))
     = :hi
+
+    | head(:bar)
+    ? head: Not a cons cell
+
+`tail` extracts the second element of a cons cell.
 
     | tail(cons(:hi, :there))
     = :there
@@ -172,8 +188,9 @@ Basic examples.
     | tail(:foo)
     ? tail: Not a cons cell
 
-    | head(:bar)
-    ? head: Not a cons cell
+`<head` and `<tail` and syntactic variants of `head` and `tail` which
+expect their argument to be "smaller than or equal in size to" a critical
+argument.
 
     | <head cons(:hi, :there)
     ? Expected <smaller>, found "cons"
@@ -181,11 +198,15 @@ Basic examples.
     | <tail :hi
     ? Expected <smaller>, found ":hi"
 
+`if` is used for descision-making.
+
     | if :true then :hi else :there
     = :hi
 
     | if :hi then :here else :there
     = :there
+
+`eq?` is used to compare atoms.
 
     | eq?(:hi, :there)
     = :false
@@ -198,11 +219,15 @@ Basic examples.
     | eq?(cons(:one, :nil), cons(:one, :nil))
     = :false
 
+`cons?` is used to detect cons cells.
+
     | cons?(:hi)
     = :false
 
     | cons?(cons(:wagga, :nil))
     = :true
+
+`not` does the expected thing when regarding atoms as booleans.
 
     | not(:true)
     = :false
@@ -223,25 +248,40 @@ Cons cells are falsey.
     | self(:foo)
     ? Use of "self" outside of a function body
 
+We can define functions.  Here's the identity function.
+
     | def id(#)
     |     #
     | id(:woo)
     = :woo
+
+Functions must be called with the appropriate arity.
 
     | def id(#)
     |     #
     | id(:foo, :bar)
     ? Arity mismatch (expected 1, got 2)
 
+    | def snd(#, another)
+    |     another
+    | snd(:foo)
+    ? Arity mismatch (expected 2, got 1)
+
+Parameter names must be defined in the function definition.
+
     | def id(#)
     |     woo
     | id(:woo)
     ? Undefined argument "woo"
 
+You can't call a parameter as if it were a function.
+
     | def wat(#, woo)
     |     woo(#)
     | wat(:woo)
     ? Undefined function "woo"
+
+You can't define two functions with the same name.
 
     | def wat(#)
     |     :there
@@ -250,50 +290,46 @@ Cons cells are falsey.
     | wat(:woo)
     ? Function "wat" already defined
 
+You can't name a function with an atom.
+
     | def :wat(#)
     |     #
     | :wat(:woo)
     ? Expected identifier, but found atom (':wat')
+
+Every function takes at least one argument.
+
+    | def wat()
+    |     :meow
+    | wat()
+    ? Expected '#', but found ')'
+
+The first argument of a function must be `#`.
 
     | def wat(meow)
     |     meow
     | wat(:woo)
     ? Expected '#', but found 'meow'
 
+The subsequent arguments don't have to be called `#`, and in fact, they
+shouldn't be.
+
     | def snd(#, another)
     |     another
     | snd(:foo, :bar)
     = :bar
 
-    | def snd(#, another)
-    |     another
-    | snd(:foo)
-    ? Arity mismatch (expected 2, got 1)
+    | def snd(#, #)
+    |     #
+    | snd(:foo, :bar)
+    ? Expected identifier, but found goose egg ('#')
+
+A function can call a built-in.
 
     | def snoc(#, another)
     |     cons(another, #)
     | snoc(:there, :hi)
     = (:hi :there)
-
-    | def count(#)
-    |     self(<tail #)
-    | count(cons(:alpha, cons(:beta, :nil)))
-    ? tail: Not a cons cell
-
-    | def count(#)
-    |     if eq?(#, :nil) then :nil else self(<tail #)
-    | count(cons(:alpha, cons(:beta, :nil)))
-    = :nil
-
-    | def last(#)
-    |     if not(cons?(#)) then # else self(<tail #)
-    | last(cons(:alpha, cons(:beta, :graaap)))
-    = :graaap
-
-    | def count(#, acc)
-    |     if eq?(#, :nil) then acc else self(<tail #, cons(:one, acc))
-    | count(cons(:A, cons(:B, :nil)), :nil)
-    = (:one (:one :nil))
 
 Functions can call other user-defined functions.
 
@@ -323,6 +359,32 @@ can syntactically tell them apart.
     | snocsnoc(:blarch, :glamch)
     = (:blarch (:blarch :glamch))
 
+A function may recursively call itself, as long as it does so with
+values which are smaller than or equal in size to the critical argument
+as the first argument.
+
+    | def count(#)
+    |     self(<tail #)
+    | count(cons(:alpha, cons(:beta, :nil)))
+    ? tail: Not a cons cell
+
+    | def count(#)
+    |     if eq?(#, :nil) then :nil else self(<tail #)
+    | count(cons(:alpha, cons(:beta, :nil)))
+    = :nil
+
+    | def last(#)
+    |     if not(cons?(#)) then # else self(<tail #)
+    | last(cons(:alpha, cons(:beta, :graaap)))
+    = :graaap
+
+    | def count(#, acc)
+    |     if eq?(#, :nil) then acc else self(<tail #, cons(:one, acc))
+    | count(cons(:A, cons(:B, :nil)), :nil)
+    = (:one (:one :nil))
+
+Arity must match when a function calls itself recursively.
+
     | def urff(#)
     |     self(<tail #, <head #)
     | urff(:woof)
@@ -332,6 +394,10 @@ can syntactically tell them apart.
     |     self(<tail #)
     | urff(:woof, :moo)
     ? Arity mismatch on self (expected 2, got 1)
+
+The remaining tests demonstrate that a function cannot call itself if it
+does not pass a values which is smaller than or equal in size to the
+critical argument as the first argument.
 
     | def urff(#)
     |     self(cons(#, #))
@@ -378,7 +444,7 @@ can syntactically tell them apart.
     | urff(cons(:graaap, :skooorp))
     ? tail: Not a cons cell
 
-Some practical examples, on Peano naturals.  Addition:
+Now, some practical examples, on Peano naturals.  Addition:
 
     | def inc(#)
     |   cons(:one, #)
