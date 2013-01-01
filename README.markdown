@@ -193,6 +193,11 @@ Basic examples.
     | eq?(:hi, :hi)
     = :true
 
+`eq?` only compares atoms; it can't deal with cons cells.
+
+    | eq?(cons(:one, :nil), cons(:one, :nil))
+    = :false
+
     | cons?(:hi)
     = :false
 
@@ -373,10 +378,48 @@ can syntactically tell them apart.
     | urff(cons(:graaap, :skooorp))
     ? tail: Not a cons cell
 
-TODO
-----
+Some practical examples, on Peano naturals.  Addition:
 
-Give a practical example computing, say, factorial.
+    | def inc(#)
+    |   cons(:one, #)
+    | def add(#, other)
+    |   if eq?(#, :nil) then other else self(<tail #, inc(other))
+    | 
+    | add(cons(:one, cons(:one, :nil)), cons(:one, :nil))
+    = (:one (:one (:one :nil)))
+
+Multiplication:
+
+    | def inc(#)
+    |   cons(:one, #)
+    | def add(#, other)
+    |   if eq?(#, :nil) then other else self(<tail #, inc(other))
+    | def mul(#, other)
+    |   if eq?(#, :nil) then :nil else
+    |     add(other, self(<tail #, other))
+    | def three(#)
+    |   cons(:one, cons(:one, cons(:one, #)))
+    | 
+    | mul(three(:nil), three(:nil))
+    = (:one (:one (:one (:one (:one (:one (:one (:one (:one :nil)))))))))
+
+Factorial!  There are 24 `:one`'s in this test's expectation.
+
+    | def inc(#)
+    |   cons(:one, #)
+    | def add(#, other)
+    |   if eq?(#, :nil) then other else self(<tail #, inc(other))
+    | def mul(#, other)
+    |   if eq?(#, :nil) then :nil else
+    |     add(other, self(<tail #, other))
+    | def fact(#)
+    |   if eq?(#, :nil) then cons(:one, :nil) else
+    |     mul(#, self(<tail #))
+    | def four(#)
+    |   cons(:one, cons(:one, cons(:one, cons(:one, #))))
+    | 
+    | fact(four(:nil))
+    = (:one (:one (:one (:one (:one (:one (:one (:one (:one (:one (:one (:one (:one (:one (:one (:one (:one (:one (:one (:one (:one (:one (:one (:one :nil))))))))))))))))))))))))
 
 Discussion
 ----------

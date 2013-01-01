@@ -1,0 +1,15 @@
+def inc(#)
+  cons(:one, #)
+def add(#, other)
+  if eq?(#, :nil) then other else self(<tail #, inc(other))
+def mul(#, other)
+  if eq?(#, :nil) then :nil else
+    if eq?(#, cons(:one, :nil)) then other else
+      add(other, self(<tail #, other))
+def fact(#)
+  if eq?(#, :nil) then cons(:one, :nil) else
+    mul(#, self(<tail #))
+def four(#)
+  cons(:one, cons(:one, cons(:one, cons(:one, #))))
+
+fact(four(:nil))
