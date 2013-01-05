@@ -551,7 +551,7 @@ I call your function.
 Lastly, the requisite etymological denoument: the name "Exanoke" started life
 as a typo for the word "example".
 
-Happy primitive recursing!
-Chris Pressey
-Cornwall, UK, WTF
+Happy primitive recursing!  
+Chris Pressey  
+Cornwall, UK, WTF  
 Jan 5, 2013
