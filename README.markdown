@@ -20,7 +20,7 @@ implements a primtive recursive function:
 
 The second option is the route [PL-{GOTO}][] takes.  But that's an imperative
 language, and it's fairly easy to restrict an imperative language in this
-way.  In PL-{GOTO}'s case, they just took PL and removed the `GOTO` construct.
+way.  In PL-{GOTO}'s case, they just took PL and removed the `GOTO` command.
 The rest of the language essentially contains only `for` loops, so what you
 get is something in which you can only express primitive recursive functions.
 (That imperative programs consisting of only `for` loops can express only and
@@ -38,15 +38,16 @@ Thing is, that's kind of difficult.  Is it possible to take the same approach
 PL-{GOTO} takes, and *syntactically* restrict a functional language to the
 primitive recursive functions?
 
-I mean, in a trivial sense, it must be; the original primitive recursive
-formulae *were* functions.  But they were highly arithmetical, with bounded
-sums and products and whatnot.  What would it look like in the setting of
-general (and symbolic) functional programming?
+I mean, in a trivial sense, it must be; in the original definition, primitive
+recursive functions *were* functions.  (Duh.)  But these have a highly
+arithmetical flavour, with bounded sums and products and whatnot.  What
+would primitive recursion look like in the setting of general (and symbolic)
+functional programming?
 
 Functional languages don't do the `for` loop thing, they do the recursion
-thing, and there are no natural bounds on that recursion, so those would have
-to be embodied by the grammar, and... well, it sounds interesting, but
-doable.  So let's try it.
+thing, and there are no natural bounds on that recursion, so some restriction
+on recursion would have to be captured by the grammar, and... well, it sounds
+somewhat interesting, and doable, so let's try it.
 
 [Pixley]: https://catseye.tc/projects/pixley/
 [PL-{GOTO}]: http://catseye.tc/projects/pl-goto.net/
@@ -83,6 +84,17 @@ than the "smallest" value.
 The fourth point can be enforced by simply disallowing functions to be
 passed to, or returned from, functions.
 
+### Note on these Criteria ###
+
+In fact, these four criteria taken together do not strictly speaking
+define primitive recursion.  They don't exclude functional programs which
+always terminate but which aren't primitive recursive (for example, the
+Ackermann function.)  However, determining that such functions terminate
+requires a more sophisticated notion of "smallerness" — a reduction ordering
+on their arguments.  Our notion of "smallerness" will be simple enough that
+it will be easy to express syntactically, and will only capture primitive
+recursion.
+
 ### Note on Critical Arguments ###
 
 I should note, though, that the second point is an oversimplification.
@@ -110,7 +122,7 @@ Let's just go with pairs and atoms for now, although natural numbers would
 be easy to add too.  Following Ruby, atoms are preceded by a colon; while I
 find this syntax somewhat obnoxious, it is less obnoxious than requiring that
 atoms are in ALL CAPS, which is what Exanoke originally had.  In truth, there
-would be no real problem with allowing atoms, parameters, and function names
+would be no real problem with allowing atoms, arguments, and function names
 (and even `self`) to all be arbitrarily alphanumeric, but it would require
 more static context checking to sort them all out, and we're trying to be
 as syntactic as reasonably possible here.
@@ -148,7 +160,7 @@ simply referred to as `#`.  Again, there would be no real problem if we were
 to allow the programmer to give it a better name, but more static context
 checking would be involved.
 
-Note that `<if` is not truly necessary.  Its only use is to embed a
+Note that `<if` is not strictly necessary.  Its only use is to embed a
 conditional into the first argument being passed to a recursive call.  You
 could also use a regular `if` and make the recursive call in both branches,
 one with `:true` as the first argument and the other with `:false`.
@@ -490,4 +502,56 @@ Factorial!  There are 24 `:one`'s in this test's expectation.
 Discussion
 ----------
 
-The name "Exanoke" started life as a typo for the word "example".
+So, what of it?
+
+It was not a particularly challenging design goal to meet; it's one of those
+things that seems rather obvious after the fact, that you can just dictate
+that one of the arguments is a critical argument, and only call yourself with
+some smaller version of your critical argument in that position.  Recursive
+calls map quite straightforwardly to `for` loops, and you end up with what is
+essentially a functional version of of a `for` program.
+
+I guess the question is, is it worth doing this primitive-recursion check as
+a syntactic, rather than a static semantic, thing?
+
+I think it is.  If you're concerned at all with writing functions which are
+guaranteed to terminate, you probably have a plan in mind (however vague)
+for how they will accomplish this, so it seems reasonable to require that you
+mark up your function to indicate how it does this.  And it's certainly
+easier to implement than analyzing an arbirarily-written function.
+
+Of course, the exact syntactic mechanisms would likely see some improvement
+in a practical application of this idea.  As alluded to in several places
+in this document, any actually-distinct lexical items (name of the critical
+argument, and so forth) could be replaced by simple static semantic checks
+(against a symbol table or whatnot.)  Which arguments are the critical
+arguments for a particular function could be indicated in the source.
+
+One criticism (if I can call it that) of primitive recursive functions is
+that, even though they can express any algorithm which runs in
+non-deterministic exponential time (which, if you believe "polynomial
+time = feasible", means, basically, all algorithms you'd ever care about),
+for any primitive recursively expressed algorithm, theye may be a (much)
+more efficient algorithm expressed in a general recursive way.
+
+However, in my experience, there are many functions, generally non-, or
+minimally, numerical, which operate on data structures, where the obvious
+implementation _is_ primitive recursive.  In day-to-day database and web
+programming, there will be operations which are series of replacements,
+updates, simple transformations, folds, and the like, all of which
+"obviously" terminate, and which can readily be written primitive recursively.
+
+Limited support for higher-order functions could be added, possibly even to
+Exanoke (as long as the "no mutual recursion" rule is still observed.)
+After all (and if you'll forgive the anthropomorphizing self-insertion in
+this sentence), if you pass me a primitive recursive function, and I'm
+primitive recursive, I'll remain primitive recursive no matter how many times
+I call your function.
+
+Lastly, the requisite etymological denoument: the name "Exanoke" started life
+as a typo for the word "example".
+
+Happy primitive recursing!
+Chris Pressey
+Cornwall, UK, WTF
+Jan 5, 2013
