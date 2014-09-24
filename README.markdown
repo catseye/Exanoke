@@ -171,7 +171,7 @@ Examples
     -> Tests for functionality "Evaluate Exanoke program"
     
     -> Functionality "Evaluate Exanoke program" is implemented by
-    -> shell command "script/exanoke %(test-file)"
+    -> shell command "script/exanoke %(test-body-file)"
 
 `cons` can be used to make lists and trees and things.
 
