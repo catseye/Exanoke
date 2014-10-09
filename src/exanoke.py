@@ -4,20 +4,21 @@
 # ... implemented in a Questionable Manner
 
 from optparse import OptionParser
-import re
 import sys
 
 
 class AST(object):
-    def __init__(self, type, children=None, value=None):
+    def __init__(self, type, children=[], value=None, index=0, formals=[]):
         self.type = type
         self.value = value
-        if children is not None:
-            self.children = children
-        else:
-            self.children = []
+        self.index = index
+        self.formals = formals
+        self.children = []
+        for child in children:
+            self.add_child(child)
 
     def add_child(self, item):
+        assert isinstance(item, AST)
         self.children.append(item)
 
     def __repr__(self):
@@ -35,36 +36,115 @@ class Scanner(object):
         self.type = None
         self.scan()
 
-    def scan_pattern(self, pattern, type, token_group=1, rest_group=2):
-        pattern = r'^(' + pattern + r')(.*?)$'
-        match = re.match(pattern, self.text, re.DOTALL)
-        if not match:
+    def scan_single_char(self, chars, type):
+        text = self.text
+        token = ''
+
+        if len(text) == 0:
             return False
-        else:
+        for char in chars:
+            if text.startswith(char):
+                token += char
+                text = text[1:]
+                break
+        if token:
+            self.text = text
+            self.token = token
             self.type = type
-            self.token = match.group(token_group)
-            self.text = match.group(rest_group)
-            #print >>sys.stderr, "(%r/%s->%r)" % (self.token, self.type, self.text)
             return True
+        else:
+            return False
+
+    def scan_multi_char(self, chars, type):
+        text = self.text
+        token = ''
+        while True:
+            if len(text) == 0:
+                return False
+            found = False
+            for char in chars:
+                if text.startswith(char):
+                    token += char
+                    text = text[1:]
+                    found = True
+                    break
+            if not found:
+                if token:
+                    self.text = text
+                    self.token = token
+                    self.type = type
+                    return True
+                else:
+                    return False
+
+    def scan_atom(self):
+        text = self.text
+        token = ''
+        if len(text) == 0:
+            return False
+        if text.startswith(':'):
+            token += ':'
+            text = text[1:]
+        else:
+            return False
+        while len(text) != 0 and text[0].isalpha():
+            token += text[0]
+            text = text[1:]
+        self.text = text
+        self.token = token
+        self.type = 'atom'
+        return True
+
+    def scan_smallifier(self):
+        text = self.text
+        token = ''
+        if len(text) == 0:
+            return False
+        if text.startswith('<'):
+            token += '<'
+            text = text[1:]
+        else:
+            return False
+        while len(text) != 0 and text[0].isalpha():
+            token += text[0]
+            text = text[1:]
+        self.text = text
+        self.token = token
+        self.type = 'smallifier'
+        return True
+
+    def scan_identifier(self):
+        text = self.text
+        token = ''
+        if len(text) == 0:
+            return False
+        while len(text) != 0 and (text[0].isalpha() or text[0] == '?'):
+            token += text[0]
+            text = text[1:]
+        if not token:
+            return False
+        self.text = text
+        self.token = token
+        self.type = 'identifier'
+        return True
 
     def scan(self):
-        self.scan_pattern(r'[ \t\r\n]*', 'whitespace')
+        self.scan_multi_char(' \t\r\n', 'whitespace')
         if not self.text:
             self.token = None
             self.type = 'EOF'
             return
-        if self.scan_pattern(r'\(|\)|\,|\#', 'goose egg'):
+        if self.scan_single_char('(),#', 'goose egg'):
             return
-        if self.scan_pattern(r':[a-zA-Z]+', 'atom'):
+        if self.scan_atom():
             return
-        if self.scan_pattern(r'[a-zA-Z]+\??', 'identifier'):
+        if self.scan_identifier():
             return
-        if self.scan_pattern(r'\<[a-z]+', 'smallifier'):
+        if self.scan_smallifier():
             return
-        if self.scan_pattern(r'.', 'unknown character'):
-            return
-        else:
-            raise ValueError, "this should never happen, self.text=(%s)" % self.text
+        self.token = self.text[0]
+        self.text = self.text[1:]
+        self.type = 'unknown character'
 
     def expect(self, token):
         if self.token == token:
@@ -100,7 +180,6 @@ class Parser(object):
     def __init__(self, text):
         self.scanner = Scanner(text)
         self.defining = None
-        self.self_arity = None
         self.defined = {}
         self.formals = None
 
@@ -138,10 +217,9 @@ class Parser(object):
         self.self_arity = len(args) + 1
         expr = self.expr()
         self.defining = None
-        self.self_arity = None
         self.formals = None
         self.defined[name] = len(args) + 1
-        return AST('FunDef', [expr] + args, value=name)
+        return AST('FunDef', [expr], formals=args, value=name)
 
     def expr(self):
         if self.scanner.consume("cons"):
@@ -202,7 +280,7 @@ class Parser(object):
         elif self.scanner.consume("#"):
             if self.defining is None:
                 raise SyntaxError('Use of "#" outside of a function body')
-            return AST('ArgRef', value=0)
+            return AST('ArgRef', index=0)
         elif self.scanner.on_type("atom"):
             atom = self.scanner.token
             self.scanner.scan()
@@ -228,7 +306,7 @@ class Parser(object):
                                       'outside of a function body' % ident)
                 if ident not in self.formals:
                     raise SyntaxError('Undefined argument "%s"' % ident)
-                return AST('ArgRef', value=self.formals[ident])
+                return AST('ArgRef', index=self.formals[ident])
         else:
             return self.smaller()
 
@@ -252,14 +330,33 @@ class Parser(object):
 
     def smallerterm(self):
         if self.scanner.consume("#"):
-            return AST('ArgRef', value=0)
+            return AST('ArgRef', index=0)
         else:
             return self.smaller()
 
 
 ### Runtime ###
 
-class Cons(object):
+
+class SExpr(object):
+    pass
+
+
+class Atom(SExpr):
+    def __init__(self, text):
+        self.text = text
+
+    def __str__(self):
+        return self.text
+
+    def __repr__(self):
+        return "Atom(%r)" % self.text
+
+    def __eq__(self, other):
+        return isinstance(other, Atom) and self.text == other.text
+
+
+class Cons(SExpr):
     def __init__(self, head, tail):
         self.head = head
         self.tail = tail
@@ -268,32 +365,43 @@ class Cons(object):
         return "(%s %s)" % (self.head, self.tail)
 
     def __repr__(self):
-        return "Cons(%r,%r)" % (self.head, self.tail)
+        return "Cons(%r, %r)" % (self.head, self.tail)
+
+    def __eq__(self, other):
+        return False  # isinstance(other, Cons) and self.head == other.head and self.tail == other.tail
+
+
+class FunDef(object):
+    def __init__(self, expr, args):
+        self.expr = expr
+        self.args = args
+
+
+TRUE = Atom(':true')
+FALSE = Atom(':false')
 
 
 class Evaluator(object):
     def __init__(self, ast):
         self.fundefs = {}
         for fundef in ast.children[1:]:
-            self.fundefs[fundef.value] = {
-                'expr': fundef.children[0],
-                'args': fundef.children[1:],
-            }
+            self.fundefs[fundef.value] = FunDef(
+                fundef.children[0], fundef.children[1:]
+            )
         self.bindings = []
 
     def eval(self, ast):
         if ast.type == 'Atom':
-            return ast.value
+            return Atom(ast.value)
         elif ast.type == 'Cons':
             v1 = self.eval(ast.children[0])
             v2 = self.eval(ast.children[1])
             return Cons(v1, v2)
         elif ast.type == 'Head':
             v1 = self.eval(ast.children[0])
-            try:
-                return v1.head
-            except AttributeError:
+            if not isinstance(v1, Cons):
                 raise TypeError("head: Not a cons cell")
+            return v1.head
         elif ast.type == 'Tail':
             v1 = self.eval(ast.children[0])
             try:
@@ -302,7 +410,7 @@ class Evaluator(object):
                 raise TypeError("tail: Not a cons cell")
         elif ast.type == 'If':
             v1 = self.eval(ast.children[0])
-            if v1 == ':true':
+            if v1 == TRUE:
                 return self.eval(ast.children[1])
             else:
                 return self.eval(ast.children[2])
@@ -310,30 +418,30 @@ class Evaluator(object):
             v1 = self.eval(ast.children[0])
             v2 = self.eval(ast.children[1])
             if v1 == v2:
-                return ':true'
+                return TRUE
             else:
-                return ':false'
+                return FALSE
         elif ast.type == 'Cons?':
             v1 = self.eval(ast.children[0])
             if isinstance(v1, Cons):
-                return ':true'
+                return TRUE
             else:
-                return ':false'
+                return FALSE
         elif ast.type == 'Not':
             v1 = self.eval(ast.children[0])
-            if v1 == ':true':
-                return ':false'
+            if v1 == TRUE:
+                return FALSE
             else:
-                return ':true'
+                return TRUE
         elif ast.type == 'Call':
-            fun = self.fundefs[ast.value]
+            fundef = self.fundefs[ast.value]
             bindings = self.bindings
             self.bindings = [self.eval(expr) for expr in ast.children]
-            result = self.eval(fun['expr'])
+            result = self.eval(fundef.expr)
             self.bindings = bindings
             return result
         elif ast.type == 'ArgRef':
-            return self.bindings[ast.value]
+            return self.bindings[ast.index]
         elif ast.type == 'Program':
             return self.eval(ast.children[0])
         else:
@@ -377,6 +485,46 @@ def main(argv):
         print >>sys.stderr, str(e)
         sys.exit(1)
     sys.exit(0)
+
+
+def target(*args):
+    import os
+    
+    def rpython_load(filename):
+        fd = os.open(filename, os.O_RDONLY, 0644)
+        text = ''
+        chunk = os.read(fd, 1024)
+        text += chunk
+        while len(chunk) == 1024:
+            chunk = os.read(fd, 1024)
+            text += chunk
+        os.close(fd)
+        return text
+
+    def rpython_input():
+        accum = ''
+        done = False
+        while not done:
+            s = os.read(1, 1)
+            if not s:
+                done = True
+            accum += s
+        return accum
+
+    def rpython_main(argv):
+        #inp = rpython_input()
+        #if not inp:
+        #    inp = 'ifeq'
+        text = rpython_load(argv[1])
+        p = Parser(text)
+        prog = p.program()
+        print "%r" % prog
+        ev = Evaluator(prog)
+        result = ev.eval(prog)
+        print "%r" % result
+        return 0
+
+    return rpython_main, None
 
 
 if __name__ == "__main__":
