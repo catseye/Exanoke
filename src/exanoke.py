@@ -339,7 +339,8 @@ class Parser(object):
 
 
 class SExpr(object):
-    pass
+    def __repr__(self):
+        return "SExpr()"
 
 
 class Atom(SExpr):
@@ -350,7 +351,7 @@ class Atom(SExpr):
         return self.text
 
     def __repr__(self):
-        return "Atom(%r)" % self.text
+        return "Atom('%s')" % self.text
 
     def __eq__(self, other):
         return isinstance(other, Atom) and self.text == other.text
@@ -365,7 +366,7 @@ class Cons(SExpr):
         return "(%s %s)" % (self.head, self.tail)
 
     def __repr__(self):
-        return "Cons(%r, %r)" % (self.head, self.tail)
+        return "Cons(%s, %s)" % (self.head.__repr__(), self.tail.__repr__())
 
     def __eq__(self, other):
         return False  # isinstance(other, Cons) and self.head == other.head and self.tail == other.tail
@@ -501,27 +502,13 @@ def target(*args):
         os.close(fd)
         return text
 
-    def rpython_input():
-        accum = ''
-        done = False
-        while not done:
-            s = os.read(1, 1)
-            if not s:
-                done = True
-            accum += s
-        return accum
-
     def rpython_main(argv):
-        #inp = rpython_input()
-        #if not inp:
-        #    inp = 'ifeq'
         text = rpython_load(argv[1])
         p = Parser(text)
         prog = p.program()
-        print "%r" % prog
         ev = Evaluator(prog)
         result = ev.eval(prog)
-        print "%r" % result
+        print result.__repr__()
         return 0
 
     return rpython_main, None

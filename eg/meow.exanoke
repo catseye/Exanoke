@@ -1,0 +1,6 @@
+def double(#)
+    cons(#, #)
+def quadruple(#)
+    double(double(#))
+
+quadruple(:meow)
