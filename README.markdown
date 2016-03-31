@@ -169,7 +169,7 @@ Examples
 --------
 
     -> Tests for functionality "Evaluate Exanoke program"
-    
+
     -> Functionality "Evaluate Exanoke program" is implemented by
     -> shell command "src/exanoke.py %(test-body-file)"
 
