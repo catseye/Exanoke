@@ -462,7 +462,7 @@ def main(argv):
         import doctest
         (fails, something) = doctest.testmod()
         if fails == 0:
-            print "All tests passed."
+            print("All tests passed.")
             sys.exit(0)
         else:
             sys.exit(1)
@@ -473,7 +473,8 @@ def main(argv):
     try:
         prog = p.program()
     except SyntaxError as e:
-        print >>sys.stderr, str(e)
+        sys.stderr.write(str(e))
+        sys.stderr.write("\n")
         sys.exit(1)
     if options.show_ast:
         from pprint import pprint
@@ -481,9 +482,10 @@ def main(argv):
         sys.exit(0)
     try:
         ev = Evaluator(prog)
-        print str(ev.eval(prog))
+        print(str(ev.eval(prog)))
     except TypeError as e:
-        print >>sys.stderr, str(e)
+        sys.stderr.write(str(e))
+        sys.stderr.write("\n")
         sys.exit(1)
     sys.exit(0)
 
@@ -492,7 +494,7 @@ def target(*args):
     import os
     
     def rpython_load(filename):
-        fd = os.open(filename, os.O_RDONLY, 0644)
+        fd = os.open(filename, os.O_RDONLY, 0o644)
         text = ''
         chunk = os.read(fd, 1024)
         text += chunk
@@ -508,7 +510,7 @@ def target(*args):
         prog = p.program()
         ev = Evaluator(prog)
         result = ev.eval(prog)
-        print result.__repr__()
+        print(result.__repr__())
         return 0
 
     return rpython_main, None
