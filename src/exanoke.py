@@ -454,21 +454,9 @@ def main(argv):
     optparser.add_option("-a", "--show-ast",
                          action="store_true", dest="show_ast", default=False,
                          help="show parsed AST instead of evaluating")
-    optparser.add_option("-t", "--test",
-                         action="store_true", dest="test", default=False,
-                         help="run test cases and exit")
     (options, args) = optparser.parse_args(argv[1:])
-    if options.test:
-        import doctest
-        (fails, something) = doctest.testmod()
-        if fails == 0:
-            print("All tests passed.")
-            sys.exit(0)
-        else:
-            sys.exit(1)
-    file = open(args[0])
-    text = file.read()
-    file.close()
+    with open(args[0], 'r') as f:
+        text = f.read()
     p = Parser(text)
     try:
         prog = p.program()
@@ -488,32 +476,6 @@ def main(argv):
         sys.stderr.write("\n")
         sys.exit(1)
     sys.exit(0)
-
-
-def target(*args):
-    import os
-    
-    def rpython_load(filename):
-        fd = os.open(filename, os.O_RDONLY, 0o644)
-        text = ''
-        chunk = os.read(fd, 1024)
-        text += chunk
-        while len(chunk) == 1024:
-            chunk = os.read(fd, 1024)
-            text += chunk
-        os.close(fd)
-        return text
-
-    def rpython_main(argv):
-        text = rpython_load(argv[1])
-        p = Parser(text)
-        prog = p.program()
-        ev = Evaluator(prog)
-        result = ev.eval(prog)
-        print(result.__repr__())
-        return 0
-
-    return rpython_main, None
 
 
 if __name__ == "__main__":
