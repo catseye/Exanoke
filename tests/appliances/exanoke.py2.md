@@ -1,0 +1,2 @@
+    -> Functionality "Evaluate Exanoke program" is implemented by
+    -> shell command "python2 src/exanoke.py %(test-body-file)"
